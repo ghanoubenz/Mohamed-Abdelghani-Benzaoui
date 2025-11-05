@@ -20,7 +20,7 @@ const fileToGenerativePart = async (file: File) => {
   };
 };
 
-export const extractInfoFromCard = async (file: File): Promise<Lead | null> => {
+export const extractInfoFromCard = async (file: File): Promise<Partial<Lead> | null> => {
   if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
   }
@@ -29,11 +29,13 @@ export const extractInfoFromCard = async (file: File): Promise<Lead | null> => {
   const imagePart = await fileToGenerativePart(file);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    // Using a more powerful model for better accuracy with various image qualities from phone cameras.
+    model: "gemini-2.5-pro",
     contents: {
       parts: [
         imagePart,
-        { text: "Extract the full name, company name, email address, and phone number from this business card. If a field is not found, return an empty string for that key." }
+        // A more detailed prompt to guide the model's extraction process.
+        { text: "You are an expert business card scanner. Carefully analyze the provided image and extract the full name, company name, email address, phone number, and country. Return the information in a JSON object that strictly adheres to the provided schema. If any field is not found on the card, its value should be an empty string." }
       ]
     },
     config: {
@@ -45,23 +47,28 @@ export const extractInfoFromCard = async (file: File): Promise<Lead | null> => {
           company: { type: Type.STRING, description: 'The name of the company.' },
           email: { type: Type.STRING, description: 'The primary email address.' },
           phone: { type: Type.STRING, description: 'The primary phone number, including extension if present.' },
+          country: { type: Type.STRING, description: 'The country mentioned in the address, if any. Return empty string if not found.' },
         },
-        required: ["name", "company", "email", "phone"],
+        required: ["name", "company", "email", "phone", "country"],
       },
     },
   });
 
   try {
     const jsonString = response.text.trim();
-    const parsedJson = JSON.parse(jsonString);
-    // Basic validation to ensure the parsed object matches the Lead structure
+    // Sanitize the response string to remove potential markdown code fences for JSON.
+    const sanitizedJsonString = jsonString.replace(/^```json\s*|```\s*$/g, '');
+    const parsedJson = JSON.parse(sanitizedJsonString);
+    
+    // Basic validation to ensure the parsed object matches the expected structure
     if (typeof parsedJson.name === 'string' &&
         typeof parsedJson.company === 'string' &&
         typeof parsedJson.email === 'string' &&
-        typeof parsedJson.phone === 'string') {
-      return parsedJson as Lead;
+        typeof parsedJson.phone === 'string' &&
+        typeof parsedJson.country === 'string') {
+      return parsedJson as Partial<Lead>;
     }
-    throw new Error("Parsed JSON does not match Lead structure");
+    throw new Error("Parsed JSON does not match expected structure");
   } catch (e) {
     console.error("Failed to parse Gemini response:", e);
     console.error("Raw response text:", response.text);

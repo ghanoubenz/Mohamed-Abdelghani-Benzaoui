@@ -1,5 +1,7 @@
 {
-  "name": "PIPECARE Event Lead Registration",
-  "description": "A simple app for PIPECARE to register leads at events. Users can manually enter their information or upload a business card for automatic data extraction using Gemini. All leads are saved to a Google Sheet.",
-  "requestFramePermissions": []
+  "name": "PIPECARE — Event Lead Capture",
+  "description": "A mobile-first lead registration app for PIPECARE that writes every lead into a Google Sheet. It supports manual entry, business card scanning, and works offline by queuing leads and syncing automatically.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
